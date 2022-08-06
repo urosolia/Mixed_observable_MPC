@@ -1,0 +1,52 @@
+name: py3_opt
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - ca-certificates=2022.6.15=h033912b_0
+  - libblas=3.9.0=15_osx64_openblas
+  - libcblas=3.9.0=15_osx64_openblas
+  - libcxx=14.0.5=hce7ea42_1
+  - libffi=3.2.1=hb1e8313_1007
+  - libgfortran=5.0.0=9_3_0_h6c81a4c_23
+  - libgfortran5=9.3.0=h6c81a4c_23
+  - liblapack=3.9.0=15_osx64_openblas
+  - libopenblas=0.3.20=openmp_hb3cd9ec_0
+  - libzlib=1.2.12=hfe4f2af_1
+  - llvm-openmp=14.0.4=ha654fa7_0
+  - ncurses=6.3=h96cf925_1
+  - numpy=1.23.0=py38h604f2a5_0
+  - openssl=1.1.1p=hfe4f2af_0
+  - pip=22.1.2=pyhd8ed1ab_0
+  - python=3.8.5=h0ed32c4_9_cpython
+  - python_abi=3.8=2_cp38
+  - readline=8.1.2=h3899abd_0
+  - setuptools=62.6.0=py38h50d1736_0
+  - sqlite=3.38.5=hd9f0692_0
+  - tk=8.6.12=h5dbffcc_0
+  - wheel=0.37.1=pyhd8ed1ab_0
+  - xz=5.2.5=haf1e3a3_1
+  - zlib=1.2.12=hfe4f2af_1
+  - pip:
+    - casadi==3.5.5
+    - cvxopt==1.3.0
+    - cvxpy==1.2.1
+    - cycler==0.11.0
+    - dccp==1.0.4
+    - ecos==2.0.10
+    - fonttools==4.33.3
+    - kiwisolver==1.4.3
+    - matplotlib==3.5.2
+    - osqp==0.6.2.post5
+    - packaging==21.3
+    - pillow==9.1.1
+    - pycddlib==2.1.6
+    - pyparsing==3.0.9
+    - pypoman==0.5.4
+    - python-dateutil==2.8.2
+    - qdldl==0.1.5.post2
+    - scipy==1.8.1
+    - scs==3.2.0
+    - six==1.16.0
+prefix: /opt/anaconda3/envs/py3_opt
