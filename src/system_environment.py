@@ -33,10 +33,14 @@ class SYSTEM_ENVIRONMENT(object):
         def plot_predicted_trajectory(self, ftocp, time=0):
             fig = plt.figure()
             ax = plt.gca()
-            for o in self.obst:
-                ellipse = Ellipse(xy=(o), width=2*self.radii[0], height=2*self.radii[1], 
-                                    edgecolor='r', fc='None', lw=2)
-                ax.add_patch(ellipse)
+            o = self.obst[self.true_environment_state]
+            ellipse = Ellipse(xy=(o), width=2*self.radii[0], height=2*self.radii[1], edgecolor='r', fc=(1, 0, 0, 0.2), lw=2, linewidth=2.5)
+            # ellipse.set_alpha(0.5)
+            ax.add_patch(ellipse)
+            o = self.obst[1-self.true_environment_state]
+            ellipse = Ellipse(xy=(o), width=2*self.radii[0], height=2*self.radii[1], edgecolor='g', fc='None', lw=2, linewidth=2.5)
+            ax.add_patch(ellipse)
+
             plt.plot(ftocp.goal[0], ftocp.goal[1], 'sk', label='Goal location')
 
             for j in range(0, ftocp.numSegments):

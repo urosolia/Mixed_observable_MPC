@@ -4,9 +4,10 @@ from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from src.system_environment import SYSTEM_ENVIRONMENT
-# plt.rc('text', usetex=True)
-# plt.rc('font', family='serif')
-# plt.rc('font', size=12)
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rc('font', size=12)
+
 import os
 if not os.path.exists('figures'):
 	os.makedirs('figures')
@@ -55,16 +56,16 @@ a_max = 20.0
 goal = np.array([14.0,  0.0, 0.0, 0.0])
 
 # Initialize environemnt and MPC problem
-p_sensor = [0.7, 0.9]
-safety_th = 0.85
+p_sensor = [0.6, 0.75]
+safety_th = 0.8
 system_environment = SYSTEM_ENVIRONMENT(A, B, obst, radii)
 
-ftocp = FTOCP_casadi(Nb, goal, A, B, Q, R, Qf, a_max, obst, radii, safety_th, p=p_sensor, printLevel = 0)
+ftocp = FTOCP_casadi(Nb, goal, A, B, Q, R, Qf, a_max, obst, radii, safety_th, p=p_sensor, printLevel = 0, proposedApproach = True)
 
 
 # ==============================================================================================
 # Start solving control task
-n_of_trials = 10
+n_of_trials = 100
 plot_flag = False
 collision_counter = 0
 closed_loop = []
@@ -88,15 +89,16 @@ for trial in range(n_of_trials):
 
 	# Randomly sample environment configuration
 	system_environment.sample_environment(bt[-1])
-	print("============ True state ", system_environment.true_environment_state, " for trial ", trial)
+	print("============ True state ", system_environment.true_environment_state, " for trial ", trial, ". Tot collision: ", collision_counter)
 
 	# Time loop
 	while (converged == False):
 		# Solve MPC problem
 		ftocp.update_Nb(Nb_t)
 		ftocp.build()
-		ftocp.solve(xt[-1])
+		ftocp.solve(xt[-1], len(xt))
 		solver_time.append(ftocp.solver_time)
+		# print("bt: ", bt)
 
 		# Plot
 		if plot_flag == True:
@@ -119,17 +121,19 @@ for trial in range(n_of_trials):
 
 			# Reduce horizon and update belief
 			Nb_t.pop(0)
-			ftocp.compute_belief(bt[-1])
 			p_sensor_t.pop(0)
-
 			ftocp.update_Nb_and_p_sensor(Nb_t, p_sensor_t)
+			ftocp.compute_belief(bt[-1], verbose = False)
+
 		else:
 			# Update horizon
 			Nb_t[0] = Nb_t[0]-1
 			Nb_t[-1] = Nb_t[-1]+1
-
+		
+		if ftocp.feasible == 0:
+			here = 1
 		# Check convergence
-		if np.linalg.norm(x_next - ftocp.goal, 2) <= 0.5:
+		if (np.linalg.norm(x_next - ftocp.goal, 2) <= 0.5):
 			xt = np.array(xt)
 			converged = True
 			closed_loop.append(xt)
@@ -137,7 +141,7 @@ for trial in range(n_of_trials):
 			measurement_list.append(observation_list)
 			if plot_flag == True:
 				system_environment.plot_closed_loop(ftocp, xt, Nb)
-			if system_environment.check_collision(xt) == True:
+			if (system_environment.check_collision(xt) == True) or (ftocp.feasible == 0):
 				print("Collision!")
 				collision_counter += 1
 			print("Reached Convergence. Obervation list: ", observation_list, ". True state ", system_environment.true_environment_state)

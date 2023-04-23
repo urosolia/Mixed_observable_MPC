@@ -13,7 +13,7 @@ class FTOCP_casadi(object):
         - buildNonlinearProgram: builds the nonlinear program solved by the above solve methos
         - model: given x_t and u_t computes x_{t+1} = A x_t + B u_t
     """
-    def __init__(self, Nb, goal, A, B, Q, R, Qf, a_max, obst, radii, safety_th, p = 0.8, printLevel = 0):
+    def __init__(self, Nb, goal, A, B, Q, R, Qf, a_max, obst, radii, safety_th, p = 0.8, printLevel = 0, proposedApproach = True):
         # Define variables
         self.N = np.sum(Nb)
         self.Nb = Nb
@@ -29,6 +29,8 @@ class FTOCP_casadi(object):
 
         self.th = 1 - safety_th
 
+        self.proposedApproach = proposedApproach
+
         self.numO = len(obst)
 
         self.obst = obst
@@ -36,24 +38,27 @@ class FTOCP_casadi(object):
 
         self.P = len(Nb)
         self.numSegments = 0
+        self.pj = [p[0]]
         for i in range(0, self.P):
             self.numSegments += self.numO**i
             print("Total number of segments: ", self.numSegments, " N_b: ", Nb)
-        
+            if i > 0:
+                self.pj = self.pj + [p[i-1]]*self.numO**i
+    
         counter = 0
         t_segment = 0
         self.Nbj = []
-        self.pj = []
         for j in range(0, self.numSegments):
             if j > counter:
                 t_segment += 1
                 counter += self.numO**t_segment
-            if t_segment<len(p):
-                self.pj.append(p[t_segment])
+            # if t_segment<len(p):
+            #     self.pj.append(p[t_segment])
             self.Nbj.append(Nb[t_segment])
         
-        print("self.Nbj")
-        print(self.Nbj)
+        # print("self.Nbj")
+        # print(self.Nbj)
+        # print(self.pj)
         self.xGuessTot = np.zeros(1)
 
     def compute_belief(self, b0, verbose = False):
@@ -61,7 +66,7 @@ class FTOCP_casadi(object):
         b = [b0]
 
         for j in range(1, self.numSegments):
-            p = self.pj[np.min([j,len(self.pj)-1])]
+            p = self.pj[j]
             self.O = []
             self.O.append(np.diag([p,1-p]))
             self.O.append(np.diag([1-p, p]))
@@ -75,7 +80,9 @@ class FTOCP_casadi(object):
                 b.append(v[-1])
 
         self.belif = b
-        self.belif_normalized = v        
+        self.belif_normalized = v   
+
+        # print("belief")     
         if verbose:
             print(b)
             print(v)
@@ -91,7 +98,7 @@ class FTOCP_casadi(object):
         else:
             return self.O[o]@bt
 
-    def solve(self, x0, verbose = False):
+    def solve(self, x0, t, verbose = False):
         # Set initail condition
 
         # Set box constraints on states, input and slack
@@ -116,7 +123,7 @@ class FTOCP_casadi(object):
             if verbose: print("Success")
             self.feasible = 1
         else:
-            print("Infeasible")
+            print("Infeasible at time ", t)
             self.feasible = 0
 
         # Store optimal solution
@@ -145,23 +152,28 @@ class FTOCP_casadi(object):
 
     def update_Nb_and_p_sensor(self, Nb, p):
         self.P = len(Nb)
+        # print(self.P)
         self.numSegments = 0
-        for i in range(0, self.P):
-            self.numSegments += self.numO**i
-            # print("Total number of segments: ", self.numSegments, " N_b: ", Nb)
+        if self.P > 1:
+            self.pj = [p[0]]
+            for i in range(0, self.P):
+                self.numSegments += self.numO**i
+                # print("Total number of segments: ", self.numSegments, " N_b: ", Nb)
+                if i > 0:
+                    self.pj = self.pj + [p[i-1]]*self.numO**i
 
         self.Nb = Nb
         counter = 0
         t_segment = 0
         self.Nbj = []
-        self.pj = []
         for j in range(0, self.numSegments):
             if j > counter:
                 t_segment += 1
                 counter += self.numO**t_segment
-            if len(p)>0 and (t_segment<len(p)):
-                self.pj.append(p[t_segment])
             self.Nbj.append(Nb[t_segment])
+
+        # print("self.pj")
+        # print(self.pj)
 
     def update_Nb(self, Nb):
         self.P = len(Nb)
@@ -199,11 +211,19 @@ class FTOCP_casadi(object):
         n_of_equality = constraint.shape[0]
 
         for j in range(0, self.numSegments):
-            for o in range(self.numO):
-                if self.belif[j][o] > self.th:
-                    # print("For segment ", j, " adding constraint for ", o,". The belief is ", self.belif[j])
-                    for i in range(1, self.Nbj[j]+1):
-                        constraint = vertcat(constraint, ((X_list[j][self.n*i+0] - self.obst[o][0])**2/self.radii[0]**2 + (X_list[j][self.n*i+1] - self.obst[o][1])**2/self.radii[1]**2))# - slackObs)
+            if self.proposedApproach == False:
+                if self.belif[j][0] > self.belif[j][1]:
+                    o = 0
+                else:
+                    o = 1
+                for i in range(1, self.Nbj[j]+1):
+                    constraint = vertcat(constraint, ((X_list[j][self.n*i+0] - self.obst[o][0])**2/self.radii[0]**2 + (X_list[j][self.n*i+1] - self.obst[o][1])**2/self.radii[1]**2))# - slackObs)
+            else:
+                for o in range(self.numO):
+                    if self.belif[j][o] > self.th: # self.th = 1 - 0.9 --> if  self.belif[j][o] <= self.th no need to consider the constraint
+                        # print("For segment ", j, " adding constraint for ", o,". The belief is ", self.belif[j])
+                        for i in range(1, self.Nbj[j]+1):
+                            constraint = vertcat(constraint, ((X_list[j][self.n*i+0] - self.obst[o][0])**2/self.radii[0]**2 + (X_list[j][self.n*i+1] - self.obst[o][1])**2/self.radii[1]**2))# - slackObs)
         n_of_inequality = constraint.shape[0] - n_of_equality
 
         # Defining Cost
